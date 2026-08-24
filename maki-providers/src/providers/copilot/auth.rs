@@ -3,6 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use base64::Engine;
+#[cfg(not(target_os = "android"))]
 use keyring::Entry;
 use maki_storage::StateDir;
 use maki_storage::auth::{
@@ -91,6 +92,7 @@ fn discover_token(hints: &mut Vec<String>) -> Result<ProviderCredentials, AgentE
     })
 }
 
+#[cfg(not(target_os = "android"))]
 fn discover_keyring_token(hints: &mut Vec<String>) -> Option<(String, String)> {
     let files = readable_config_files();
     for host in keyring_hosts(&files) {
@@ -112,6 +114,11 @@ fn discover_keyring_token(hints: &mut Vec<String>) -> Option<(String, String)> {
             }
         }
     }
+    None
+}
+
+#[cfg(target_os = "android")]
+fn discover_keyring_token(_hints: &mut Vec<String>) -> Option<(String, String)> {
     None
 }
 

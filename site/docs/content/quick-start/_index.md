@@ -30,6 +30,24 @@ curl -fsSL https://maki.sh/install.sh | sh
 
 Installs to `~/.local/bin`. Override with `MAKI_INSTALL_DIR`.
 
+### Termux
+
+Build Maki inside Termux. Release binaries built for desktop Linux do not run on Android.
+
+```sh
+pkg upgrade
+pkg install build-essential clang git perl pkg-config rust
+cargo install --locked --git https://github.com/tontinton/maki.git maki
+```
+
+Bash is included with Termux and is required by Maki's shell tools. To copy text to the Android clipboard, install the Termux:API app and package:
+
+```sh
+pkg install termux-api
+```
+
+Without Termux:API, Maki falls back to OSC 52 clipboard support. GitHub CLI keyring discovery is unavailable on Android, so use `maki auth login copilot` or set `GH_COPILOT_TOKEN`.
+
 ### Windows (PowerShell)
 
 ```powershell

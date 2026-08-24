@@ -31,7 +31,7 @@ fn posix_fmt_is_12h(fmt: &[u8]) -> bool {
         .any(|w| matches!(w, b"%I" | b"%l" | b"%p" | b"%r"))
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "android")))]
 fn system_uses_12h() -> bool {
     use std::ffi::CStr;
     // The libc crate does not bind `nl_langinfo_l` on Apple targets,
@@ -52,6 +52,11 @@ fn system_uses_12h() -> bool {
         libc::freelocale(loc);
         uses_12h
     }
+}
+
+#[cfg(target_os = "android")]
+fn system_uses_12h() -> bool {
+    false
 }
 
 #[cfg(windows)]

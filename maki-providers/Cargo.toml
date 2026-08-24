@@ -26,6 +26,8 @@ inventory = { workspace = true }
 jiff = { workspace = true }
 getrandom = { workspace = true }
 open = { workspace = true }
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
 keyring = { workspace = true }
 
 [dev-dependencies]

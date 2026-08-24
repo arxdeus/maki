@@ -1,7 +1,12 @@
 use crate::terminal;
+#[cfg(not(target_os = "android"))]
 use arboard::Clipboard;
 #[cfg(target_os = "linux")]
 use arboard::{LinuxClipboardKind, SetExtLinux};
+#[cfg(target_os = "android")]
+use std::io::Write;
+#[cfg(target_os = "android")]
+use std::process::{Command, Stdio};
 
 pub(crate) enum CopyResult {
     Copied,
@@ -9,12 +14,14 @@ pub(crate) enum CopyResult {
 }
 
 pub(crate) struct ClipboardState {
+    #[cfg(not(target_os = "android"))]
     native: Option<Clipboard>,
 }
 
 impl ClipboardState {
     pub(crate) fn new() -> Self {
         Self {
+            #[cfg(not(target_os = "android"))]
             native: Clipboard::new().ok(),
         }
     }
@@ -42,6 +49,27 @@ impl ClipboardState {
     }
 
     fn copy_native(&mut self, text: &str) -> Result<(), String> {
+        #[cfg(target_os = "android")]
+        {
+            let mut child = Command::new("termux-clipboard-set")
+                .stdin(Stdio::piped())
+                .spawn()
+                .map_err(|e| format!("termux-clipboard-set unavailable: {e}"))?;
+            child
+                .stdin
+                .take()
+                .ok_or_else(|| "termux-clipboard-set stdin unavailable".to_string())?
+                .write_all(text.as_bytes())
+                .map_err(|e| e.to_string())?;
+            return child
+                .wait()
+                .map_err(|e| e.to_string())?
+                .success()
+                .then_some(())
+                .ok_or_else(|| "termux-clipboard-set failed".to_string());
+        }
+
+        #[cfg(not(target_os = "android"))]
         let Some(clipboard) = &mut self.native else {
             return Err("native clipboard unavailable".into());
         };
@@ -62,7 +90,7 @@ impl ClipboardState {
             }
         }
 
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(not(any(target_os = "linux", target_os = "android")))]
         {
             clipboard.set_text(text).map_err(|e| e.to_string())
         }

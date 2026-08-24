@@ -19,7 +19,6 @@ tracing = { workspace = true }
 syntect = { workspace = true }
 unicode-width = { workspace = true }
 serde_json = { workspace = true }
-arboard = { workspace = true }
 jiff = { workspace = true }
 smol = { workspace = true }
 flume = { workspace = true }
@@ -44,6 +43,8 @@ tempfile = { workspace = true }
 shell-words = { workspace = true }
 open = { workspace = true }
 
+[target.'cfg(not(target_os = "android"))'.dependencies]
+arboard = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { workspace = true }
