@@ -98,8 +98,13 @@ jobs:
           tag="$GITHUB_REF_NAME"
           target="aarch64-linux-android"
           archive="${BINARY_NAME}-${tag}-${target}.tar.gz"
+          runtime_root="${ANDROID_NDK_HOME:-${ANDROID_NDK_LATEST_HOME:-}}"
+          [ -n "${runtime_root}" ] || { echo "Android NDK path is unavailable" >&2; exit 1; }
+          libcxx="$(find "${runtime_root}" -path '*/aarch64-linux-android/libc++_shared.so' -print -quit)"
+          [ -f "${libcxx}" ] || { echo "libc++_shared.so not found in Android NDK" >&2; exit 1; }
           cp "target/${target}/release/${BINARY_NAME}" "${BINARY_NAME}"
-          tar czf "${archive}" "${BINARY_NAME}"
+          cp "${libcxx}" libc++_shared.so
+          tar czf "${archive}" "${BINARY_NAME}" libc++_shared.so
           echo "ARCHIVE=${archive}" >> "$GITHUB_ENV"
 
       - name: Upload artifact
