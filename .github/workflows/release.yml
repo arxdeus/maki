@@ -31,48 +31,48 @@ jobs:
           .github/scripts/retry.sh bash -c \
             'gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --generate-notes'
 
-  build-linux:
-    name: Build (${{ matrix.target }})
-    needs: create-release
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: x86_64-unknown-linux-musl
-            runner: ubuntu-latest
-          - target: aarch64-unknown-linux-musl
-            runner: ubuntu-24.04-arm
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build in Alpine container
-        run: |
-          docker run --rm \
-            -v "${{ github.workspace }}:/workspace" \
-            -w /workspace \
-            -e CARGO_TERM_COLOR=always \
-            -e CARGO_INCREMENTAL=0 \
-            alpine:3.21 sh -c '
-              apk add --no-cache gcc g++ musl-dev make perl linux-headers curl git ca-certificates pkgconf python3-dev
-              git config --global --add safe.directory /workspace
-              curl --proto "=https" --tlsv1.2 --retry 5 --retry-delay 2 --retry-all-errors -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --target ${{ matrix.target }}
-              source "$HOME/.cargo/env"
-              cargo build --release --target ${{ matrix.target }}
-            '
-          sudo chown -R $(id -u):$(id -g) target/
-
-      - name: Package
-        run: |
-          tag="$GITHUB_REF_NAME"
-          archive="${BINARY_NAME}-${tag}-${{ matrix.target }}.tar.gz"
-          cp "target/${{ matrix.target }}/release/${BINARY_NAME}" "${BINARY_NAME}"
-          tar czf "${archive}" "${BINARY_NAME}"
-          echo "ARCHIVE=${archive}" >> "$GITHUB_ENV"
-
-      - name: Upload artifact
-        run: .github/scripts/retry.sh gh release upload "$GITHUB_REF_NAME" "$ARCHIVE" --clobber
+#   build-linux:
+#     name: Build (${{ matrix.target }})
+#     needs: create-release
+#     runs-on: ${{ matrix.runner }}
+#     strategy:
+#       fail-fast: false
+#       matrix:
+#         include:
+#           - target: x86_64-unknown-linux-musl
+#             runner: ubuntu-latest
+#           - target: aarch64-unknown-linux-musl
+#             runner: ubuntu-24.04-arm
+#
+#     steps:
+#       - uses: actions/checkout@v4
+#
+#       - name: Build in Alpine container
+#         run: |
+#           docker run --rm \
+#             -v "${{ github.workspace }}:/workspace" \
+#             -w /workspace \
+#             -e CARGO_TERM_COLOR=always \
+#             -e CARGO_INCREMENTAL=0 \
+#             alpine:3.21 sh -c '
+#               apk add --no-cache gcc g++ musl-dev make perl linux-headers curl git ca-certificates pkgconf python3-dev
+#               git config --global --add safe.directory /workspace
+#               curl --proto "=https" --tlsv1.2 --retry 5 --retry-delay 2 --retry-all-errors -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --target ${{ matrix.target }}
+#               source "$HOME/.cargo/env"
+#               cargo build --release --target ${{ matrix.target }}
+#             '
+#           sudo chown -R $(id -u):$(id -g) target/
+#
+#       - name: Package
+#         run: |
+#           tag="$GITHUB_REF_NAME"
+#           archive="${BINARY_NAME}-${tag}-${{ matrix.target }}.tar.gz"
+#           cp "target/${{ matrix.target }}/release/${BINARY_NAME}" "${BINARY_NAME}"
+#           tar czf "${archive}" "${BINARY_NAME}"
+#           echo "ARCHIVE=${archive}" >> "$GITHUB_ENV"
+#
+#       - name: Upload artifact
+#         run: .github/scripts/retry.sh gh release upload "$GITHUB_REF_NAME" "$ARCHIVE" --clobber
 
   build-termux:
     name: Build (aarch64-linux-android)
@@ -105,60 +105,60 @@ jobs:
       - name: Upload artifact
         run: .github/scripts/retry.sh gh release upload "$GITHUB_REF_NAME" "$ARCHIVE" --clobber
 
-  build-other:
-    name: Build (${{ matrix.target }})
-    needs: create-release
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: x86_64-apple-darwin
-            runner: macos-15-intel
-          - target: aarch64-apple-darwin
-            runner: macos-14
-          - target: x86_64-pc-windows-msvc
-            runner: windows-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        run: rustup target add ${{ matrix.target }}
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.target }}-${{ github.ref_name }}
-
-      - name: Build
-        run: cargo build --release --target ${{ matrix.target }}
-
-      - name: Package (Unix)
-        if: runner.os != 'Windows'
-        run: |
-          tag="$GITHUB_REF_NAME"
-          archive="${BINARY_NAME}-${tag}-${{ matrix.target }}.tar.gz"
-          cp "target/${{ matrix.target }}/release/${BINARY_NAME}" "${BINARY_NAME}"
-          tar czf "${archive}" "${BINARY_NAME}"
-          echo "ARCHIVE=${archive}" >> "$GITHUB_ENV"
-
-      - name: Package (Windows)
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          tag="$GITHUB_REF_NAME"
-          archive="${BINARY_NAME}-${tag}-${{ matrix.target }}.zip"
-          cp "target/${{ matrix.target }}/release/${BINARY_NAME}.exe" "${BINARY_NAME}.exe"
-          7z a "${archive}" "${BINARY_NAME}.exe"
-          echo "ARCHIVE=${archive}" >> "$GITHUB_ENV"
-
-      - name: Upload artifact
-        shell: bash
-        run: .github/scripts/retry.sh gh release upload "$GITHUB_REF_NAME" "$ARCHIVE" --clobber
+#   build-other:
+#     name: Build (${{ matrix.target }})
+#     needs: create-release
+#     runs-on: ${{ matrix.runner }}
+#     strategy:
+#       fail-fast: false
+#       matrix:
+#         include:
+#           - target: x86_64-apple-darwin
+#             runner: macos-15-intel
+#           - target: aarch64-apple-darwin
+#             runner: macos-14
+#           - target: x86_64-pc-windows-msvc
+#             runner: windows-latest
+#
+#     steps:
+#       - uses: actions/checkout@v4
+#
+#       - name: Install Rust toolchain
+#         run: rustup target add ${{ matrix.target }}
+#
+#       - uses: Swatinem/rust-cache@v2
+#         with:
+#           key: ${{ matrix.target }}-${{ github.ref_name }}
+#
+#       - name: Build
+#         run: cargo build --release --target ${{ matrix.target }}
+#
+#       - name: Package (Unix)
+#         if: runner.os != 'Windows'
+#         run: |
+#           tag="$GITHUB_REF_NAME"
+#           archive="${BINARY_NAME}-${tag}-${{ matrix.target }}.tar.gz"
+#           cp "target/${{ matrix.target }}/release/${BINARY_NAME}" "${BINARY_NAME}"
+#           tar czf "${archive}" "${BINARY_NAME}"
+#           echo "ARCHIVE=${archive}" >> "$GITHUB_ENV"
+#
+#       - name: Package (Windows)
+#         if: runner.os == 'Windows'
+#         shell: bash
+#         run: |
+#           tag="$GITHUB_REF_NAME"
+#           archive="${BINARY_NAME}-${tag}-${{ matrix.target }}.zip"
+#           cp "target/${{ matrix.target }}/release/${BINARY_NAME}.exe" "${BINARY_NAME}.exe"
+#           7z a "${archive}" "${BINARY_NAME}.exe"
+#           echo "ARCHIVE=${archive}" >> "$GITHUB_ENV"
+#
+#       - name: Upload artifact
+#         shell: bash
+#         run: .github/scripts/retry.sh gh release upload "$GITHUB_REF_NAME" "$ARCHIVE" --clobber
 
   publish:
     name: Publish Release
-    needs: [build-linux, build-termux, build-other]
+    needs: build-termux
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
