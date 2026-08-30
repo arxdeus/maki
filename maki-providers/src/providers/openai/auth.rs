@@ -9,7 +9,7 @@ use serde::Deserialize;
 use tracing::{debug, error, warn};
 
 use crate::AgentError;
-use crate::providers::{ResolvedAuth, urlenc};
+use crate::providers::{ResolvedAuth, configure_termux_ca, urlenc};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 pub(crate) const PROVIDER: &str = "openai";
@@ -46,15 +46,17 @@ struct TokenResponse {
 }
 
 fn http_client(timeout: Duration) -> Result<isahc::HttpClient, AgentError> {
-    isahc::HttpClient::builder()
-        .connect_timeout(CONNECT_TIMEOUT)
-        .timeout(timeout)
-        // curl carries http2 for OTLP.
-        .version_negotiation(VersionNegotiation::http11())
-        .build()
-        .map_err(|e| AgentError::Config {
-            message: format!("http client: {e}"),
-        })
+    configure_termux_ca(
+        isahc::HttpClient::builder()
+            .connect_timeout(CONNECT_TIMEOUT)
+            .timeout(timeout),
+    )
+    // curl carries http2 for OTLP.
+    .version_negotiation(VersionNegotiation::http11())
+    .build()
+    .map_err(|e| AgentError::Config {
+        message: format!("http client: {e}"),
+    })
 }
 
 fn extract_account_id(token: &str) -> Option<String> {

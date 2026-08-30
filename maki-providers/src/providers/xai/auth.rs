@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use tracing::{debug, error, warn};
 
 use crate::AgentError;
-use crate::providers::{KeyPool, ResolvedAuth, urlenc};
+use crate::providers::{KeyPool, ResolvedAuth, configure_termux_ca, urlenc};
 
 use super::catalog;
 
@@ -94,16 +94,18 @@ struct DeviceTokenError {
 }
 
 fn http_client(timeout: Duration) -> Result<isahc::HttpClient, AgentError> {
-    isahc::HttpClient::builder()
-        .connect_timeout(CONNECT_TIMEOUT)
-        .timeout(timeout)
-        .redirect_policy(RedirectPolicy::None)
-        // curl carries http2 for OTLP.
-        .version_negotiation(VersionNegotiation::http11())
-        .build()
-        .map_err(|e| AgentError::Config {
-            message: format!("http client: {e}"),
-        })
+    configure_termux_ca(
+        isahc::HttpClient::builder()
+            .connect_timeout(CONNECT_TIMEOUT)
+            .timeout(timeout)
+            .redirect_policy(RedirectPolicy::None),
+    )
+    // curl carries http2 for OTLP.
+    .version_negotiation(VersionNegotiation::http11())
+    .build()
+    .map_err(|e| AgentError::Config {
+        message: format!("http client: {e}"),
+    })
 }
 
 fn oauth_form_headers() -> Vec<(&'static str, String)> {

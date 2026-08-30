@@ -1,11 +1,14 @@
 use std::collections::BTreeMap;
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use futures_lite::StreamExt;
 use futures_lite::io::AsyncBufRead;
-use isahc::config::{Configurable, VersionNegotiation};
+use isahc::HttpClientBuilder;
+use isahc::config::{CaCertificate, Configurable, VersionNegotiation};
 use isahc::http::request::Builder;
 use serde::Deserialize;
 use serde_json::Value;
@@ -37,6 +40,8 @@ pub(crate) mod zai;
 const LOW_SPEED_BYTES_PER_SEC: u32 = 1;
 const UNMAPPED_SSE_ERROR_STATUS: u16 = 400;
 const AUTHORIZATION_HEADER: &str = "authorization";
+const TERMUX_PREFIX: &str = "/data/data/com.termux/files/usr";
+const TERMUX_CA_RELATIVE_PATH: &str = "etc/tls/cert.pem";
 
 fn bearer_value(api_key: &str) -> String {
     format!("Bearer {api_key}")
@@ -270,16 +275,42 @@ pub(crate) async fn next_sse_line<R: AsyncBufRead + Unpin>(
     result
 }
 
+fn termux_ca_path(termux_version: Option<&str>, prefix: Option<&str>) -> Option<PathBuf> {
+    let prefix = match (termux_version, prefix) {
+        (Some(_), Some(prefix)) => Path::new(prefix),
+        (Some(_), None) => Path::new(TERMUX_PREFIX),
+        (None, Some(TERMUX_PREFIX)) => Path::new(TERMUX_PREFIX),
+        (None, _) => return None,
+    };
+    Some(prefix.join(TERMUX_CA_RELATIVE_PATH))
+}
+
+pub(crate) fn configure_termux_ca(builder: HttpClientBuilder) -> HttpClientBuilder {
+    match termux_ca_path(
+        std::env::var_os("TERMUX_VERSION")
+            .as_deref()
+            .and_then(OsStr::to_str),
+        std::env::var_os("PREFIX")
+            .as_deref()
+            .and_then(OsStr::to_str),
+    ) {
+        Some(path) => builder.ssl_ca_certificate(CaCertificate::file(path)),
+        None => builder,
+    }
+}
+
 pub(crate) fn http_client(timeouts: Timeouts) -> isahc::HttpClient {
-    isahc::HttpClient::builder()
-        .connect_timeout(timeouts.connect)
-        .low_speed_timeout(LOW_SPEED_BYTES_PER_SEC, timeouts.low_speed)
-        // The workspace enables curl's http2 feature for OTLP over gRPC, which
-        // would otherwise flip provider streaming to h2 over TLS. Streaming is
-        // tuned for HTTP/1.1, so pin it.
-        .version_negotiation(VersionNegotiation::http11())
-        .build()
-        .expect("failed to build HTTP client")
+    configure_termux_ca(
+        isahc::HttpClient::builder()
+            .connect_timeout(timeouts.connect)
+            .low_speed_timeout(LOW_SPEED_BYTES_PER_SEC, timeouts.low_speed),
+    )
+    // The workspace enables curl's http2 feature for OTLP over gRPC, which
+    // would otherwise flip provider streaming to h2 over TLS. Streaming is
+    // tuned for HTTP/1.1, so pin it.
+    .version_negotiation(VersionNegotiation::http11())
+    .build()
+    .expect("failed to build HTTP client")
 }
 
 #[derive(Clone, Debug)]
@@ -393,6 +424,22 @@ mod tests {
 
     const ERROR_MESSAGE: &str = "Our servers are currently overloaded. Please try again later.";
     const PARSE_FAILED: &str = "SSE error payload should deserialize";
+
+    #[test_case(Some("0.118"), Some("/custom/termux"), Some("/custom/termux/etc/tls/cert.pem") ; "termux_version_with_prefix")]
+    #[test_case(Some("0.118"), None, Some("/data/data/com.termux/files/usr/etc/tls/cert.pem") ; "termux_version_without_prefix")]
+    #[test_case(None, Some(TERMUX_PREFIX), Some("/data/data/com.termux/files/usr/etc/tls/cert.pem") ; "termux_prefix")]
+    #[test_case(None, Some("/usr"), None ; "non_termux_prefix")]
+    #[test_case(None, None, None ; "no_termux_environment")]
+    fn termux_ca_path_from_environment(
+        termux_version: Option<&str>,
+        prefix: Option<&str>,
+        expected: Option<&str>,
+    ) {
+        assert_eq!(
+            termux_ca_path(termux_version, prefix).as_deref(),
+            expected.map(std::path::Path::new)
+        );
+    }
 
     // Codex only admits the overload in `code`, and anything we cannot place has to stay a plain
     // 400 so a user mistake is not retried forever: https://github.com/tontinton/maki/issues/777
