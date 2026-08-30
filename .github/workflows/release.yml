@@ -91,7 +91,7 @@ jobs:
           key: aarch64-linux-android-${{ github.ref_name }}
 
       - name: Build
-        run: cargo ndk --platform 24 --target arm64-v8a build --release
+        run: cargo ndk --platform 24 --target arm64-v8a --link-builtins build --release
 
       - name: Package
         run: |
