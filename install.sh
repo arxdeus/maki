@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-REPO="tontinton/maki"
+REPO="arxdeus/maki"
 BINARY="maki"
 
 github_curl() {
