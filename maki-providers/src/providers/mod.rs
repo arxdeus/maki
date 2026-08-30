@@ -275,26 +275,27 @@ pub(crate) async fn next_sse_line<R: AsyncBufRead + Unpin>(
     result
 }
 
-fn termux_ca_path(termux_version: Option<&str>, prefix: Option<&str>) -> Option<PathBuf> {
-    let prefix = match (termux_version, prefix) {
-        (Some(_), Some(prefix)) => Path::new(prefix),
-        (Some(_), None) => Path::new(TERMUX_PREFIX),
-        (None, Some(TERMUX_PREFIX)) => Path::new(TERMUX_PREFIX),
-        (None, _) => return None,
+fn termux_ca_path(android: bool, prefix: Option<&str>) -> Option<PathBuf> {
+    let prefix = match (android, prefix) {
+        (true, Some(prefix)) => Path::new(prefix),
+        (true, None) => Path::new(TERMUX_PREFIX),
+        (false, Some(TERMUX_PREFIX)) => Path::new(TERMUX_PREFIX),
+        (false, _) => return None,
     };
     Some(prefix.join(TERMUX_CA_RELATIVE_PATH))
 }
 
 pub(crate) fn configure_termux_ca(builder: HttpClientBuilder) -> HttpClientBuilder {
     match termux_ca_path(
-        std::env::var_os("TERMUX_VERSION")
-            .as_deref()
-            .and_then(OsStr::to_str),
+        cfg!(target_os = "android"),
         std::env::var_os("PREFIX")
             .as_deref()
             .and_then(OsStr::to_str),
     ) {
-        Some(path) => builder.ssl_ca_certificate(CaCertificate::file(path)),
+        Some(path) => {
+            debug!(ca_path = %path.display(), "configured Termux CA bundle");
+            builder.ssl_ca_certificate(CaCertificate::file(path))
+        }
         None => builder,
     }
 }
@@ -425,18 +426,18 @@ mod tests {
     const ERROR_MESSAGE: &str = "Our servers are currently overloaded. Please try again later.";
     const PARSE_FAILED: &str = "SSE error payload should deserialize";
 
-    #[test_case(Some("0.118"), Some("/custom/termux"), Some("/custom/termux/etc/tls/cert.pem") ; "termux_version_with_prefix")]
-    #[test_case(Some("0.118"), None, Some("/data/data/com.termux/files/usr/etc/tls/cert.pem") ; "termux_version_without_prefix")]
-    #[test_case(None, Some(TERMUX_PREFIX), Some("/data/data/com.termux/files/usr/etc/tls/cert.pem") ; "termux_prefix")]
-    #[test_case(None, Some("/usr"), None ; "non_termux_prefix")]
-    #[test_case(None, None, None ; "no_termux_environment")]
+    #[test_case(true, Some("/custom/termux"), Some("/custom/termux/etc/tls/cert.pem") ; "android_with_prefix")]
+    #[test_case(true, None, Some("/data/data/com.termux/files/usr/etc/tls/cert.pem") ; "android_without_prefix")]
+    #[test_case(false, Some(TERMUX_PREFIX), Some("/data/data/com.termux/files/usr/etc/tls/cert.pem") ; "termux_prefix")]
+    #[test_case(false, Some("/usr"), None ; "non_termux_prefix")]
+    #[test_case(false, None, None ; "no_termux_environment")]
     fn termux_ca_path_from_environment(
-        termux_version: Option<&str>,
+        android: bool,
         prefix: Option<&str>,
         expected: Option<&str>,
     ) {
         assert_eq!(
-            termux_ca_path(termux_version, prefix).as_deref(),
+            termux_ca_path(android, prefix).as_deref(),
             expected.map(std::path::Path::new)
         );
     }
