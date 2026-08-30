@@ -33,7 +33,7 @@ Installs to `~/.local/bin`. Override with `MAKI_INSTALL_DIR`.
 ### Termux
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/arxdeus/maki/main/install-termux.sh | sh
+curl -fsSL https://raw.githubusercontent.com/tontinton/maki/main/install-termux.sh | sh
 ```
 
 This installs the ARM64 Android release to `$PREFIX/bin`. Override with `MAKI_INSTALL_DIR`.

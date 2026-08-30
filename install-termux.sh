@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-REPO="arxdeus/maki"
+REPO="tontinton/maki"
 BINARY="maki"
 TARGET="aarch64-linux-android"
 
