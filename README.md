@@ -77,6 +77,20 @@ curl -fsSL https://maki.sh/install.sh | sh
 
 Installs to `~/.local/bin`. Override with `MAKI_INSTALL_DIR`.
 
+### Termux
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/arxdeus/maki/main/install-termux.sh | sh
+```
+
+Installs the ARM64 Android release to `$PREFIX/bin`. Override with `MAKI_INSTALL_DIR`.
+
+To copy text to the Android clipboard, install the Termux:API app and package:
+
+```sh
+pkg install termux-api
+```
+
 ### Windows (PowerShell)
 
 ```powershell

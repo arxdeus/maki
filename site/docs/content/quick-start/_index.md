@@ -32,13 +32,11 @@ Installs to `~/.local/bin`. Override with `MAKI_INSTALL_DIR`.
 
 ### Termux
 
-Build Maki inside Termux. Release binaries built for desktop Linux do not run on Android.
-
 ```sh
-pkg upgrade
-pkg install build-essential clang git perl pkg-config rust
-cargo install --locked --git https://github.com/tontinton/maki.git maki
+curl -fsSL https://raw.githubusercontent.com/arxdeus/maki/main/install-termux.sh | sh
 ```
+
+This installs the ARM64 Android release to `$PREFIX/bin`. Override with `MAKI_INSTALL_DIR`.
 
 Bash is included with Termux and is required by Maki's shell tools. To copy text to the Android clipboard, install the Termux:API app and package:
 
