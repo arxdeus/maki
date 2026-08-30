@@ -1,12 +1,15 @@
 use std::fs;
+#[cfg(not(target_os = "android"))]
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use base64::Engine;
+#[cfg(not(target_os = "android"))]
 use image::{ImageBuffer, RgbaImage};
 use maki_agent::{ImageMediaType, ImageSource};
 
+#[cfg(not(target_os = "android"))]
 const MAX_IMAGE_PIXELS: usize = 8_000_000;
 const MAX_IMAGE_BYTES: usize = 20 * 1024 * 1024;
 
@@ -58,6 +61,7 @@ pub fn load_file_image(path: &Path, media_type: ImageMediaType) -> Result<ImageS
     Ok(ImageSource::new(media_type, Arc::from(b64)))
 }
 
+#[cfg(not(target_os = "android"))]
 pub(crate) fn load_clipboard_image() -> Result<ImageSource, String> {
     let mut cb = arboard::Clipboard::new().map_err(|e| e.to_string())?;
     let img = cb.get_image().map_err(|e| e.to_string())?;
@@ -76,6 +80,12 @@ pub(crate) fn load_clipboard_image() -> Result<ImageSource, String> {
     Ok(ImageSource::new(ImageMediaType::Png, Arc::from(b64)))
 }
 
+#[cfg(target_os = "android")]
+pub(crate) fn load_clipboard_image() -> Result<ImageSource, String> {
+    Err("Clipboard image paste is unavailable on Android".into())
+}
+
+#[cfg(not(target_os = "android"))]
 fn encode_rgba_to_png(width: u32, height: u32, rgba: &[u8]) -> Result<Vec<u8>, String> {
     let img: RgbaImage =
         ImageBuffer::from_raw(width, height, rgba.to_vec()).ok_or("Invalid image dimensions")?;
@@ -143,5 +153,14 @@ mod tests {
         let source = result.unwrap();
         assert_eq!(source.media_type, ImageMediaType::Png);
         assert!(!source.data.is_empty());
+    }
+
+    #[cfg(target_os = "android")]
+    #[test]
+    fn clipboard_image_is_unavailable_on_android() {
+        assert_eq!(
+            load_clipboard_image().unwrap_err(),
+            "Clipboard image paste is unavailable on Android"
+        );
     }
 }
