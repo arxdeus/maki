@@ -59,12 +59,25 @@ main() {
 
     tar xzf "${tmp}/${archive}" -C "${tmp}"
     [ -f "${tmp}/${BINARY}" ] || err "archive did not contain ${BINARY}"
+    [ -f "${tmp}/libc++_shared.so" ] || err "archive did not contain libc++_shared.so"
 
     mkdir -p "${install_dir}"
-    staged="${install_dir}/.${BINARY}.new.$$"
-    cp "${tmp}/${BINARY}" "${staged}"
-    chmod +x "${staged}"
-    mv "${staged}" "${install_dir}/${BINARY}"
+    runtime_dir="${install_dir}/.${BINARY}"
+    staged_runtime="${install_dir}/.${BINARY}.new.$$"
+    staged_launcher="${install_dir}/.${BINARY}.launcher.$$"
+    mkdir "${staged_runtime}"
+    cp "${tmp}/${BINARY}" "${tmp}/libc++_shared.so" "${staged_runtime}/"
+    chmod +x "${staged_runtime}/${BINARY}"
+    cat > "${staged_launcher}" <<'EOF'
+#!/bin/sh
+install_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+export LD_LIBRARY_PATH="${install_dir}/.maki${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+exec "${install_dir}/.maki/maki" "$@"
+EOF
+    chmod +x "${staged_launcher}"
+    rm -rf "${runtime_dir}"
+    mv "${staged_runtime}" "${runtime_dir}"
+    mv "${staged_launcher}" "${install_dir}/${BINARY}"
 
     echo "${BINARY} ${tag} installed to ${install_dir}/${BINARY}"
 }
